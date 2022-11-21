@@ -31,36 +31,31 @@ DataPoint *generateDataSet(int size, int maxInt)
 double interpolateLagrange(DataPoint *f, int givenX, int n)
 {
     double result = 0;
-// to split process into 4 threads
-#pragma omp parallel num_threads(MAX_THREADS)
-    {
-// to split the code into 4 for basic loops
-#pragma omp for
+    
+    // to split the code into 4 for basic loops
+    #pragma omp  parallel for num_threads(MAX_THREADS)
         for (int i = 0; i < n; i++)
         {
 
             double polynomial = f[i].y;
-
             for (int j = 0; j < n; j++)
             {
                 if (j != i)
                 {
-// to write to the particular memory location, in this case "polynomial" variable, it's more efficient
-#pragma omp atomic write
                     polynomial = polynomial * (givenX - f[j].x) / double(f[i].x - f[j].x);
                 }
             }
 
-            result += polynomial;
+            // to write to the particular memory location, in this case "result" variable, it's more efficient and prevents race conditions
+            #pragma omp atomic write
+                result = result + polynomial;
         }
-    }
-
+    
     return result;
 }
 
 int main()
 {
-    clock_t start = clock();
     srand(420);
 
     if (const char *env = getenv("MAX_THREADS"))
@@ -72,19 +67,15 @@ int main()
     {
         DATA_SIZE = (stoi((string)(env)));
     }
-
-    cout << MAX_THREADS << endl;
-    cout << DATA_SIZE << endl;
+    cout << endl;
+    cout << "Thread num : " << MAX_THREADS << endl;
+    cout << "Data size  : " << DATA_SIZE << endl;
 
     DataPoint *f = generateDataSet(DATA_SIZE, 100);
 
-    cout << "Value of f(10) is : " << interpolateLagrange(f, 10, DATA_SIZE);
-
-    clock_t stop = clock();
-    double elapsed = (double)(stop - start) / CLOCKS_PER_SEC;
-
-    printf("\nTime elapsed: %.5f\n", elapsed);
-
+    cout << "Value of f(10) is : " << interpolateLagrange(f, 10, DATA_SIZE) << endl;
+    cout << endl << "Execution times:" << endl;
+ 
     return 0;
 }
 
